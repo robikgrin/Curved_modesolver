@@ -18,7 +18,7 @@ Photonic modesolver for curved waveguides.
 - [ ] 🔴 Any possible crossection profile calculations
 
 ## Introduction
-The picture of structure parameters
+![alt text](D:\Github\rob_solver\fiqures\pic.png)
 
 - [ ] Needs to be written
 ## Example
