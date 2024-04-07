@@ -18,7 +18,8 @@ Photonic modesolver for curved waveguides.
 - [ ] 🔴 Any possible crossection profile calculations
 
 ## Introduction
-![alt text](https://github.com/robikgrin/Curved-WG-modesolver/blob/master/figures/pic.png?raw=true)
+Structure parameters
+![pic](./fiqures/pic.png)
 
 - [ ] Needs to be written
 ## Example
