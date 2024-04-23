@@ -200,7 +200,17 @@ class rect_WG:
 
         _xi_ = np.linspace(-W/2 - delta_l, W/2 + delta_r, N)
         self.t_xi = 1 + kappa * _xi_
-        
+    
+    def set_width(self, W:float):
+        r'''Set width of core value
+
+        Parameters
+        ----------
+        ``W`` : float
+                New width value
+        '''
+        self.W = W
+
     def draw_structure(self):
         r'''Draw refractive index profile of defined waveguide structure
         '''
