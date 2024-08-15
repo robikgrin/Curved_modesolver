@@ -14,7 +14,6 @@ Photonic modesolver for curved waveguides.
 - [ ] 🔴 Effective indexes $n_eff$ dependency from the step of simulation $\delta$
 - [ ] 🔴 Effective indexes $n_{eff}$ dependency from the distance to the layout edges $\Delta$
 - [ ] 🔴 Effective indexes $n_{eff}$ dependency from curvarure $\kappa$ values
-- [ ] 🔴 Mode evolution for the curvature $\kappa$ values (**gif** format)
 - [ ] 🔴 Any possible crossection profile calculations
 
 ## Introduction
