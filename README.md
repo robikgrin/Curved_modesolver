@@ -10,15 +10,12 @@ Method based on finite-difference frequency domain (FDFD) method. About FTFD you
 - mode profiles visualization (and other plots) via maplotlib.pyplot,
 - overlap calculaion
 ## Feature features
-
 - [ ] Any possible crossection profile calculations
 
 ## Introduction
 ### Main parameters of the planar waveguide and PML
 Main parameters of waveguide crossection is on the picture below
 ![alt text](D:\Github\rob_solver\fiqures\parameters.png)
-
-
 
 Also the picture of parameters of the PML parameters, implemented into our scheme of calculations
 ![alt text](D:\Github\rob_solver\fiqures\parameters.png)
