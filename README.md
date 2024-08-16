@@ -15,10 +15,10 @@ Method based on finite-difference frequency domain (FDFD) method. About FTFD you
 ## Introduction
 ### Main parameters of the planar waveguide and PML
 Main parameters of waveguide crossection is on the picture below
-<img src="./fiqures/parameters.png " width="400">
+<img src="./fiqures/parameters.png " width="600">
 
 Also the picture of parameters of the PML parameters, implemented into our scheme of calculations
-<img src="./fiqures/PML_area.png " width="400">
+<img src="./fiqures/PML_area.png " width="600">
 
 All these parameters needs to be written into into the number of grids, which you need to pave, f.e. $x_{left} = 100$ means, that the width of the PML at the left will be $100 \times d \xi$ (read about $d \xi$ below).
 
