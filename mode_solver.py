@@ -26,7 +26,7 @@ class rect_WG:
     ``d_xi`` : float
             Simulation step in ``xi`` direction
     
-    ``d_xi`` : float
+    ``d_eta`` : float
             Simulation step in ``eta`` drection
 
     ``W`` : float
