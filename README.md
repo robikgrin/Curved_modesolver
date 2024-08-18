@@ -1,4 +1,4 @@
-# curved_modesolver.py
+# Curved waveguide modesolver
 ## Overview
 Photonic modesolver for curved planar waveguides.
 
@@ -132,16 +132,20 @@ obj.draw_field(2, 'log')
 <img src="./fiqures/ex2/ex2_structure.png " width="600">
 
 #### Modes
-Norm scale
+Normal scale
+
 <img src="./fiqures/ex2/ex2_1_mode_norm.png " width="800">
 
 Log scale
+
 <img src="./fiqures/ex2/ex2_1_mode_log.png " width="800">
 
-Norm scale
+Normal scale
+
 <img src="./fiqures/ex2/ex2_2_mode_norm.png " width="800">
 
 Log scale
+
 <img src="./fiqures/ex2/ex2_2_mode_log.png " width="800">
 
 ## Feature 1: Effective indexes dependency from a width W of a core
