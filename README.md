@@ -202,6 +202,10 @@ plt.show()
 
 ### Python script
 ```python
+import curved_modesolver as cms
+import numpy as np
+import matplotlib.pyplot as plt
+
 #Initial parameters
 wavelength = 1.55E-6
 n_clad = 1.4444
@@ -290,9 +294,9 @@ plt.show()
 <img src="./fiqures/feat3/feat_3.png" width="800">
 
 ## Future features
-- [] Parallel computing implementation
-- [] Machine learning implementation
-- [] Any possible crossection profile calculations
+- [ ] Parallel computing implementation
+- [ ] Machine learning implementation
+- [ ] Any possible crossection profile calculations
 
 First and second options will be effective improvements for eigenmodes calculation, because now the proccess of solving equation on eigenmodes takes huge amount of time. Parallel computing will decrease the time of calculation and machine learning will make possible some other features: finding the optimal cross-section of waveguide, speed of calculations improvement and etc.
 
@@ -308,6 +312,6 @@ There are also many great eigesolvers, which are available for free on Github:
 * [modesolverpy](https://github.com/jtambasco/modesolverpy)
 * [Awesome Photonics](https://github.com/joamatab/awesome_photonics) - bunch of different materials for photonics design: simulations, lab automation, layouts and etc.
 
-Thanks my lab for support, my family for being with me in tough times! I extremely love you :heart: 
+Thanks my lab for support, my family for being with me in tough times! I extremely love you:heart:
 
 na predele effectivnosty! 
