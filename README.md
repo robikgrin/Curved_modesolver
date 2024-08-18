@@ -290,13 +290,13 @@ plt.show()
 <img src="./fiqures/feat3/feat_3.png" width="800">
 
 ## Future features
-- [ ] #1
-- [ ] #2
-- [ ] #3
+- [] Parallel computing implementation
+- [] Machine learning implementation
+- [] Any possible crossection profile calculations
 
-First option will be helpful, if user would like to download a picture of the waveguide cross-section, made by pixels of different color. Possibly, program will make available the color encoding process and after that drawing a structure, which was offered by user. It will make possible to calculate various waveguide cross-sections and calculate their modes.
+First and second options will be effective improvements for eigenmodes calculation, because now the proccess of solving equation on eigenmodes takes huge amount of time. Parallel computing will decrease the time of calculation and machine learning will make possible some other features: finding the optimal cross-section of waveguide, speed of calculations improvement and etc.
 
-Second and third options will be effective improvements for eigenmodes calculation, because now the proccess of solving equation on eigenmodes takes huge amount of time. Parallel computing will decrease the time of calculation and machine learning will make possible some other features: finding the optimal cross-section of waveguide, speed of calculations improvement and etc.
+Third option will be helpful, if user would like to download a picture of the waveguide cross-section, made by pixels of different color. Possibly, program will make available the color encoding process and after that drawing a structure, which was offered by user. It will make possible to calculate various waveguide cross-sections and calculate their modes.
 
 And maybe something more, we will see :smirk: 
 
