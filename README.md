@@ -1,4 +1,4 @@
-# Cuved-WG-modesolver
+# curved_modesolver.py
 ## Overview
 Photonic modesolver for curved planar waveguides.
 
@@ -9,15 +9,6 @@ Method based on finite-difference frequency domains (FDFD) method. About FDFD wi
 - perfectly-meatched layer **([PML](https://en.wikipedia.org/wiki/Perfectly_matched_layer))** implementation,
 - mode profiles visualization (and other plots) via maplotlib.pyplot,
 - overlap calculaion
-
-## Examples and features implementations
-* [Ex1: Mode calculations for straight planar waveguide with default parameters](#example-1-mode-calculations-for-straight-planar-waveguide-with-default-parameters)
-* [Ex2: Mode calculations for curved planar waveguide](#example-2-mode-calculations-for-curved-planar-waveguide)
-* [Feat1: Effective indexes dependency from a width W of a core](#feature-1-effective-indexes-dependency-from-a-width-W-of-a-core)
-* [Feat2: Effective indexes dependency from the step of a simulation](#feature-2-effective-indexes-dependency-from-a-step-of-simulation)
-* [Feat3: Effective indexes dependency from the distance to the layout edges](#feature-3-effective-indexes-dependency-from-the-distance-to-the-layout-edges)
-* [Feat4: Effective indexes dependency from various curvarures of the waveguide](#feature-4-effective-indexes-dependency-from-various-curvatures-of-the-waveguide)
-
 
 ## Introduction
 ### Main parameters of the planar waveguide and PML
@@ -35,6 +26,14 @@ All these parameters ($x_{left}, x_{right}, y_{up}, y_{down}$) needs to be writt
 - wavelength $\lambda$ (``lambda``)
 - steps for finite-differences in each direction: $d \xi$ (``d_xi``) in horizontal direction, $d \eta$ (``d_eta``) - in vertical direction
 - curvature of waveguide $\kappa$ (``kappa``)
+
+## Examples and features implementations
+* [Ex1: Mode calculations for straight planar waveguide with default parameters](#example-1-mode-calculations-for-straight-planar-waveguide-with-default-parameters)
+* [Ex2: Mode calculations for curved planar waveguide](#example-2-mode-calculations-for-curved-planar-waveguide)
+* [Feat1: Effective indexes dependency from a width W of a core](#feature-1-effective-indexes-dependency-from-a-width-W-of-a-core)
+* [Feat2: Effective indexes dependency from the step of a simulation](#feature-2-effective-indexes-dependency-from-a-step-of-simulation)
+* [Feat3: Effective indexes dependency from the distance to the layout edges](#feature-3-effective-indexes-dependency-from-the-distance-to-the-layout-edges)
+* [Feat4: Effective indexes dependency from various curvarures of the waveguide](#feature-4-effective-indexes-dependency-from-various-curvatures-of-the-waveguide)
 
 ## Example 1: Mode calculations for straight planar waveguide with default parameters
 Let's see how programm will work with default settings. The default setting is:
@@ -57,10 +56,9 @@ In our script we calculating first 2 modes of waveguide.
 ### Python script
 
 ```python
-import curved_modesolver.py as cms
+import curved_modesolver as cms
 
-keke = rect_WG() #constructing the object with default parameters
-
+keke = cms.rect_WG() #constructing the object with default parameters
 
 NPML_l = [100, 100, 100, 100]
 
@@ -98,8 +96,9 @@ In this script we also will calculate 2 modes. The settings of simulation:
 * distance to the down border of simulation: 3 $\mu m$
 * curvature value:  $\mu m^{-1}$
 
+### Python script
 ```python
-import curved_modesolver.py as cms
+import curved_modesolver as cms
 
 #Parameters initialization
 wavelength = 1.55E-6
@@ -115,7 +114,7 @@ delta_u = 3E-6
 delta_d = 3E-6
 kappa = 0.1E6
 
-obj = rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta_l, delta_r, delta_u, delta_d, kappa)
+obj = cms.rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta_l, delta_r, delta_u, delta_d, kappa)
 
 NPML_l = [100, 100, 100, 100]
 obj.FDE(2, NPML_l)
@@ -147,22 +146,122 @@ Log scale
 
 ## Feature 1: Effective indexes dependency from a width W of a core
 
-bla-bla-bla
+
+### Python script
+
+#### Chart
 
 ## Feature 2: Effective indexes dependency from the step of a simulation
 
-bla-bla-bla
+
+### Python script
+```python
+#Initial parameters
+wavelength = 1.55E-6
+n_clad = 1.4444
+n_core = 3.4755
+H = 0.22E-6 
+W = 2E-6 
+d_eta, d_xi = 0.02E-6, 0.02E-6
+delta = np.array([1E-6*(i+1) for i in range(5)])
+indexes = np.array([[]])
+kappa = 0.1E6
+
+NPML_l = [100, 100, 100, 100]
+
+#Calculation
+for i in range(len(delta)):
+    obj = rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta[i], delta[i], delta[i], delta[i], kappa)
+    obj.FDE(3, NPML_l)
+    if i == 0:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=1)
+    else:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=0)
+
+#Visualization
+fig, ax=plt.subplots()
+ax.set_title(r'Effective indexes $n_{eff}$ dependency from the distance to the layout edges $\Delta$')
+ax.set_ylabel(r'$n_{eff}$, effective index')
+ax.set_xlabel(r'$\Delta$, $\mu m$')
+ax.scatter(delta*10**6, indexes[:, 0], c='blue', label='1 mode')
+ax.scatter(delta*10**6, indexes[:, 1], c='red', label = '2 mode')
+ax.scatter(delta*10**6, indexes[:, 2], c='orange', label='3 mode')
+ax.legend()
+ax.grid(True)
+plt.show()
+```
+
+#### Chart
 
 ## Feature 3: Effective indexes dependency from the distance to the layout edges
 
-bla-bla-bla
+
+### Python script
+```python
+#Initial parameters
+wavelength = 1.55E-6
+n_clad = 1.4444
+n_core = 3.4755
+H = 0.22E-6 
+W = 2E-6 
+d_eta, d_xi = 0.02E-6, 0.02E-6
+delta = np.array([1E-6*(i+1) for i in range(5)])
+indexes = np.array([[]])
+kappa = 0.1E6
+
+NPML_l = [100, 100, 100, 100]
+
+#Calculation
+for i in range(len(delta)):
+    obj = rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta[i], delta[i], delta[i], delta[i], kappa)
+    obj.FDE(3, NPML_l)
+    if i == 0:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=1)
+    else:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=0)
+
+#Visualization
+fig, ax=plt.subplots()
+ax.set_title(r'Effective indexes $n_{eff}$ dependency from the distance to the layout edges $\Delta$')
+ax.set_ylabel(r'$n_{eff}$, effective index')
+ax.set_xlabel(r'$\Delta$, $\mu m$')
+ax.scatter(delta*10**6, indexes[:, 0], c='blue', label='1 mode')
+ax.scatter(delta*10**6, indexes[:, 1], c='red', label = '2 mode')
+ax.scatter(delta*10**6, indexes[:, 2], c='orange', label='3 mode')
+ax.legend()
+ax.grid(True)
+plt.show()
+```
+
+#### Chart
 
 ## Feature 4: Effective indexes dependency from various curvarures of the waveguide
 
-bla-bla-bla
+### Python script
+```python
+
+```
+
+#### Chart
 
 
 ## Future features
-- :star:Any possible crossection profile calculations
+- [] #1
+- [] #2
+- [] #3
+
+First option will be helpful, if user would like to download a picture of the waveguide cross-section, made by pixels of different color. Possibly, program will make available the color encoding process and after that drawing a structure, which was offered by user. It will make possible to calculate various waveguide cross-sections and calculate their modes.
+
+Second and third options will be effective improvements for eigenmodes calculation, because now the proccess of solving equation on eigenmodes takes huge amount of time. Parallel computing will decrease the time of calculation and machine learning will make possible some other features: finding the optimal cross-section of waveguide, speed of calculations improvement and etc.
 
 And maybe something more, we will see :smirk: 
+
+## Acknowledgments
+
+There are also many great eigesolvers, which are available for free on Github:
+
+* [EMpy](https://github.com/lbolla/EMpy)
+* [modesolverpy](https://github.com/jtambasco/modesolverpy)
+* [Awesome Photonics](https://github.com/joamatab/awesome_photonics) - bunch of different materials for photonics design: simulations, lab automation, layouts and etc.
+
+Thank my lab for support, my family for being with me in tough times! I extremely love you :heart:
