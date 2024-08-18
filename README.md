@@ -312,6 +312,6 @@ There are also many great eigesolvers, which are available for free on Github:
 * [modesolverpy](https://github.com/jtambasco/modesolverpy)
 * [Awesome Photonics](https://github.com/joamatab/awesome_photonics) - bunch of different materials for photonics design: simulations, lab automation, layouts and etc.
 
-Thanks my lab for support, my family for being with me in tough times! I extremely love you:heart:
+Thanks my lab for support, my family for being with me in tough times! I extremely love you :heart:
 
 na predele effectivnosty! 
