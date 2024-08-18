@@ -129,20 +129,20 @@ obj.draw_field(2, 'log')
 
 #### Structure
 
-<img src="./fiqures/ex2/ex2_def_structure.png " width="600">
+<img src="./fiqures/ex2/ex2_structure.png " width="600">
 
 #### Modes
 Norm scale
-<img src="./fiqures/ex2/ex2_def_1_mode_norm.png " width="800">
+<img src="./fiqures/ex2/ex2_1_mode_norm.png " width="800">
 
 Log scale
-<img src="./fiqures/ex2/ex2_def_1_mode_log.png " width="800">
+<img src="./fiqures/ex2/ex2_1_mode_log.png " width="800">
 
 Norm scale
-<img src="./fiqures/ex2/ex2_def_2_mode_norm.png " width="800">
+<img src="./fiqures/ex2/ex2_2_mode_norm.png " width="800">
 
 Log scale
-<img src="./fiqures/ex2/ex2_def_2_mode_log.png " width="800">
+<img src="./fiqures/ex2/ex2_2_mode_log.png " width="800">
 
 ## Feature 1: Effective indexes dependency from a width W of a core
 
@@ -246,9 +246,9 @@ plt.show()
 
 
 ## Future features
-- [] #1
-- [] #2
-- [] #3
+- [ ] #1
+- [ ] #2
+- [ ] #3
 
 First option will be helpful, if user would like to download a picture of the waveguide cross-section, made by pixels of different color. Possibly, program will make available the color encoding process and after that drawing a structure, which was offered by user. It will make possible to calculate various waveguide cross-sections and calculate their modes.
 
