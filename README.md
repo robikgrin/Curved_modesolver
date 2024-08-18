@@ -12,7 +12,7 @@ Method based on finite-difference frequency domains (FDFD) method. About FDFD wi
 
 ## Introduction
 ### Main parameters of the planar waveguide and PML
-Main parameters of waveguide crossection is on the picture below
+Main parameters of waveguide cross-section is on the picture below
 
 <img src="./fiqures/parameters.png " width="600">
 
@@ -20,7 +20,7 @@ Also the picture of parameters of the PML parameters, implemented into our schem
 
 <img src="./fiqures/PML_area.png " width="600">
 
-All these parameters ($x_{left}, x_{right}, y_{up}, y_{down}$) needs to be written into into the number of grids, which you need to pave, f.e. $x_{left} = 100$ means, that the width of the PML at the left will be $100 \times d \xi$ (read about $d \xi$ below).
+All these parameters ($x_{left},\ x_{right},\ y_{up},\ y_{down}$) needs to be written into into the number of grids, which you need to pave, f.e. $x_{left} = 100$ means, that the width of the PML at the left will be $100 \times d \xi$ (read about $d \xi$ below).
 
 ### Other parameters of simulation
 - wavelength $\lambda$ (``lambda``)
@@ -33,7 +33,6 @@ All these parameters ($x_{left}, x_{right}, y_{up}, y_{down}$) needs to be writt
 * [Feat1: Effective indexes dependency from a width W of a core](#feature-1-effective-indexes-dependency-from-a-width-W-of-a-core)
 * [Feat2: Effective indexes dependency from the step of a simulation](#feature-2-effective-indexes-dependency-from-a-step-of-simulation)
 * [Feat3: Effective indexes dependency from the distance to the layout edges](#feature-3-effective-indexes-dependency-from-the-distance-to-the-layout-edges)
-* [Feat4: Effective indexes dependency from various curvarures of the waveguide](#feature-4-effective-indexes-dependency-from-various-curvatures-of-the-waveguide)
 
 ## Example 1: Mode calculations for straight planar waveguide with default parameters
 Let's see how programm will work with default settings. The default setting is:
@@ -51,7 +50,7 @@ Let's see how programm will work with default settings. The default setting is:
 * distance to the down border of simulation: 2 $\mu m$
 * curvature value: 0 $\mu m^{-1}$
 
-In our script we calculating first 2 modes of waveguide.
+In our script we calculated first 2 modes of waveguide.
 
 ### Python script
 
@@ -148,15 +147,58 @@ Log scale
 
 <img src="./fiqures/ex2/ex2_2_mode_log.png " width="800">
 
+
+Also, you can set negative ``kappa`` value and the mode overleak will be in other side. 
 ## Feature 1: Effective indexes dependency from a width W of a core
 
 
 ### Python script
+```python
+import curved_modesolver as cms
+import numpy as np
+import matplotlib.pyplot as plt
+
+#Initial parameters
+wavelength = 1.55E-6
+n_clad = 1.4444
+n_core = 3.4755
+H = 0.22E-6 
+widths = np.array([0.4E-6*(i+1) for i in range(5)])
+d_eta, d_xi = 0.02E-6, 0.02E-6
+delta = 3E-6
+indexes = np.array([[]])
+
+#Zero curvature
+kappa = 0
+
+NPML_l = [100, 100, 100, 100]
+
+#Calculation
+for i in range(len(widths)):
+    obj = cms.rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, widths[i], H, delta, delta, delta, delta, kappa)
+    obj.FDE(2, NPML_l)
+    if i == 0:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=1)
+    else:
+        indexes = np.append(indexes, [np.real(obj.n_eff)], axis=0)
+
+#Visualization
+fig, ax=plt.subplots()
+ax.set_title(r'Effective indexes $n_{eff}$ dependency from the width of Si core $W$')
+ax.set_ylabel(r'$n_{eff}$, effective index')
+ax.set_xlabel(r'$W$, $\mu m$')
+ax.scatter(widths*10**6, indexes[:, 0], c='blue', edgecolors = 'black', label='1 mode', zorder = 2)
+ax.scatter(widths*10**6, indexes[:, 1], c='red',edgecolors = 'black', label='2 mode', zorder = 2)
+ax.legend()
+ax.grid(True)
+plt.show()
+```
 
 #### Chart
 
-## Feature 2: Effective indexes dependency from the step of a simulation
+<img src="./fiqures/feat1/feat_1.png" width="800">
 
+## Feature 2: Effective indexes dependency from the step of a simulation
 
 ### Python script
 ```python
@@ -166,17 +208,19 @@ n_clad = 1.4444
 n_core = 3.4755
 H = 0.22E-6 
 W = 2E-6 
-d_eta, d_xi = 0.02E-6, 0.02E-6
-delta = np.array([1E-6*(i+1) for i in range(5)])
+d_eta_xi = np.array(0.01 * (i+1) for i in range(5))
+delta = 2E-6
 indexes = np.array([[]])
-kappa = 0.1E6
+
+#Zero curvature
+kappa = 0.0
 
 NPML_l = [100, 100, 100, 100]
 
 #Calculation
 for i in range(len(delta)):
-    obj = rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta[i], delta[i], delta[i], delta[i], kappa)
-    obj.FDE(3, NPML_l)
+    obj = cms.rect_WG(wavelength, n_clad, n_core, d_eta_xi[i], d_eta_xi[i], W, H, delta, delta, delta, delta, kappa)
+    obj.FDE(2, NPML_l)
     if i == 0:
         indexes = np.append(indexes, [np.real(obj.n_eff)], axis=1)
     else:
@@ -184,24 +228,29 @@ for i in range(len(delta)):
 
 #Visualization
 fig, ax=plt.subplots()
-ax.set_title(r'Effective indexes $n_{eff}$ dependency from the distance to the layout edges $\Delta$')
+ax.set_title(r'Effective indexes $n_{eff}$ dependency from the step of simulation $d \xi = d \eta = \delta$')
 ax.set_ylabel(r'$n_{eff}$, effective index')
-ax.set_xlabel(r'$\Delta$, $\mu m$')
-ax.scatter(delta*10**6, indexes[:, 0], c='blue', label='1 mode')
-ax.scatter(delta*10**6, indexes[:, 1], c='red', label = '2 mode')
-ax.scatter(delta*10**6, indexes[:, 2], c='orange', label='3 mode')
+ax.set_xlabel(r'$\delta$, $\mu m$')
+ax.scatter(d_eta_xi*10**6, indexes[:, 0], c='blue', edgecolors='black', label='1 mode', zorder = 2)
+ax.scatter(d_eta_xi*10**6, indexes[:, 1], c='red', edgecolors='black', label = '2 mode', zorder = 2)
 ax.legend()
 ax.grid(True)
 plt.show()
 ```
 
 #### Chart
+
+<img src="./fiqures/feat2/feat_2.png" width="800">
 
 ## Feature 3: Effective indexes dependency from the distance to the layout edges
 
 
 ### Python script
 ```python
+import curved_modesolver as cms
+import numpy as np
+import matplotlib.pyplot as plt
+
 #Initial parameters
 wavelength = 1.55E-6
 n_clad = 1.4444
@@ -217,8 +266,8 @@ NPML_l = [100, 100, 100, 100]
 
 #Calculation
 for i in range(len(delta)):
-    obj = rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta[i], delta[i], delta[i], delta[i], kappa)
-    obj.FDE(3, NPML_l)
+    obj = cms.rect_WG(wavelength, n_clad, n_core, d_xi, d_eta, W, H, delta[i], delta[i], delta[i], delta[i], kappa)
+    obj.FDE(2, NPML_l)
     if i == 0:
         indexes = np.append(indexes, [np.real(obj.n_eff)], axis=1)
     else:
@@ -229,9 +278,8 @@ fig, ax=plt.subplots()
 ax.set_title(r'Effective indexes $n_{eff}$ dependency from the distance to the layout edges $\Delta$')
 ax.set_ylabel(r'$n_{eff}$, effective index')
 ax.set_xlabel(r'$\Delta$, $\mu m$')
-ax.scatter(delta*10**6, indexes[:, 0], c='blue', label='1 mode')
-ax.scatter(delta*10**6, indexes[:, 1], c='red', label = '2 mode')
-ax.scatter(delta*10**6, indexes[:, 2], c='orange', label='3 mode')
+ax.scatter(delta*10**6, indexes[:, 0], c='blue', edgecolors='black', label='1 mode', zorder=2)
+ax.scatter(delta*10**6, indexes[:, 1], c='red', edgecolors='black', label = '2 mode', zorder=2)
 ax.legend()
 ax.grid(True)
 plt.show()
@@ -239,15 +287,7 @@ plt.show()
 
 #### Chart
 
-## Feature 4: Effective indexes dependency from various curvarures of the waveguide
-
-### Python script
-```python
-
-```
-
-#### Chart
-
+<img src="./fiqures/feat3/feat_3.png" width="800">
 
 ## Future features
 - [ ] #1
@@ -268,4 +308,6 @@ There are also many great eigesolvers, which are available for free on Github:
 * [modesolverpy](https://github.com/jtambasco/modesolverpy)
 * [Awesome Photonics](https://github.com/joamatab/awesome_photonics) - bunch of different materials for photonics design: simulations, lab automation, layouts and etc.
 
-Thank my lab for support, my family for being with me in tough times! I extremely love you :heart:
+Thanks my lab for support, my family for being with me in tough times! I extremely love you :heart: 
+
+na predele effectivnosty! 
