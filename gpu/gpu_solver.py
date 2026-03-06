@@ -1,20 +1,100 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
+from torchdiffeq import odeint
+
+class WaveguideODE(nn.Module):
+    """Класс, описывающий производные dU/ds и dPhi/ds для интегратора torchdiffeq"""
+    def __init__(self, solver, k_ctrl, L):
+        super().__init__()
+        self.solver = solver
+        self.k_ctrl = k_ctrl
+        self.L = L
+
+        self.segments = len(k_ctrl) - 3
+        # Матрица базиса кубического B-сплайна
+        self.M = torch.tensor([
+            [-1,  3, -3,  1],
+            [ 3, -6,  3,  0],
+            [-3,  0,  3,  0],
+            [ 1,  4,  1,  0]
+        ], dtype=torch.float64, device=solver.device) / 6.0
+
+    def evaluate_spline(self, s):
+        """Вычисляет кривизну и ее производные в конкретной физической точке s (скаляр)"""
+        # Переводим физическую длину в глобальный параметр t
+        t_global = (s / self.L) * self.segments
+        t_global = torch.clamp(t_global, 0.0, self.segments - 1e-5)
+        
+        idx = torch.floor(t_global).long()
+        t = t_global - idx
+        
+        # Выбираем 4 контрольные точки для текущего локального куска
+        P_window = torch.stack([
+            self.k_ctrl[idx], 
+            self.k_ctrl[idx+1], 
+            self.k_ctrl[idx+2], 
+            self.k_ctrl[idx+3]
+        ])
+        
+        T = torch.stack([t**3, t**2, t, torch.ones_like(t)])
+        dT = torch.stack([3*t**2, 2*t, torch.ones_like(t), torch.zeros_like(t)])
+        d2T = torch.stack([6*t, torch.tensor(2.0, dtype=torch.float64, device=self.solver.device), torch.zeros_like(t), torch.zeros_like(t)])
+        
+        M_P = torch.matmul(self.M, P_window)
+        
+        k = torch.dot(T, M_P)
+        dk_dt = torch.dot(dT, M_P)
+        d2k_dt2 = torch.dot(d2T, M_P)
+        
+        # Пересчет производных (chain rule)
+        dt_ds = self.segments / self.L
+        dk_ds = dk_dt * dt_ds
+        d2k_ds2 = d2k_dt2 * (dt_ds**2)
+        
+        return k, dk_ds, d2k_ds2
+
+    def forward(self, s, state):
+        """Правая часть диффура: возвращает dU/ds и dPhi/ds"""
+        U, Phi = state
+        
+        k, dk, d2k = self.evaluate_spline(s)
+        b, db, i1, i2, j0, j1 = self.solver.interpolate_cache(k)
+        
+        beta_m = b.unsqueeze(1)
+        
+        # Сборка матриц
+        G = 2j * torch.diag(b) + 2 * dk * i1 - dk * j0
+        Q = 1j * dk * torch.diag(db) + (dk**2) * i2 + (d2k + 2j * beta_m * dk) * i1 - (dk**2) * j1 - 1j * beta_m * dk * j0
+        
+        C_raw = torch.linalg.solve(G, -Q)
+        
+        K = 0.5 * (C_raw - C_raw.mH)
+        loss_diag = torch.diag(torch.abs(torch.imag(b)))
+        K_lossy = K - loss_diag
+        
+        # Фазовый синхронизм
+        phase_mat = torch.exp(1j * (Phi.unsqueeze(0) - Phi.unsqueeze(1)))
+        C_eff = K_lossy * phase_mat
+        
+        dU_ds = torch.matmul(C_eff, U)
+        dPhi_ds = torch.real(b)
+        
+        return (dU_ds, dPhi_ds)
+
 
 class TorchModePropagator(nn.Module):
-    def __init__(self, cache_file, num_steps=1000, device='cpu'):
+    def __init__(self, cache_file, device='cpu'):
         super().__init__()
         self.device = device
-        self.num_steps = num_steps
         
-        # 1. ЗАГРУЗКА КЭША
+        # ЗАГРУЗКА КЭША
         data = np.load(cache_file)
         self.k_array = torch.tensor(data['kappa_array'], dtype=torch.float64, device=device)
         self.dk = self.k_array[1] - self.k_array[0]
         self.k_min = self.k_array[0]
         self.k_max = self.k_array[-1]
+        
         self.N = data['beta'].shape[1] 
         
         self.beta = torch.tensor(data['beta'], dtype=torch.complex128, device=device)
@@ -24,114 +104,54 @@ class TorchModePropagator(nn.Module):
         self.J0 = torch.tensor(data['J0'], dtype=torch.complex128, device=device)
         self.J1 = torch.tensor(data['J1'], dtype=torch.complex128, device=device)
 
-    def bezier_curve(self, P, num_points):
-        """
-        Генерирует гладкую кривую Безье и ее производные аналитически.
-        P - тензор контрольных точек [N_ctrl]
-        """
-        n = len(P) - 1
-        t = torch.linspace(0, 1, num_points, dtype=torch.float64, device=self.device)
-        
-        # Вычисляем полиномы Бернштейна
-        B = torch.zeros((num_points, n + 1), dtype=torch.float64, device=self.device)
-        dB = torch.zeros((num_points, n), dtype=torch.float64, device=self.device)
-        d2B = torch.zeros((num_points, n - 1), dtype=torch.float64, device=self.device)
-        
-        import math
-        for i in range(n + 1):
-            coef = math.comb(n, i)
-            B[:, i] = coef * (t ** i) * ((1 - t) ** (n - i))
-            
-        for i in range(n):
-            coef = n * math.comb(n - 1, i)
-            dB[:, i] = coef * (t ** i) * ((1 - t) ** (n - 1 - i))
-            
-        for i in range(n - 1):
-            coef = n * (n - 1) * math.comb(n - 2, i)
-            d2B[:, i] = coef * (t ** i) * ((1 - t) ** (n - 2 - i))
-            
-        k = torch.matmul(B, P)
-        dk_dt = torch.matmul(dB, P[1:] - P[:-1])
-        d2k_dt2 = torch.matmul(d2B, P[2:] - 2*P[1:-1] + P[:-2])
-        
-        return k, dk_dt, d2k_dt2
-
     def interpolate_cache(self, k):
-        # Мягкий Clamp, который не убивает градиенты мгновенно
-        k_clamped = k - F.relu(k - self.k_max + 1e-5) + F.relu(self.k_min + 1e-5 - k)
-        
-        idx = (k_clamped - self.k_min) / self.dk
-        idx_floor = torch.floor(idx).long()
-        idx_floor = torch.clamp(idx_floor, 0, len(self.k_array) - 2)
-        
-        w = (idx - idx_floor)
+        # Жесткая защита от выхода за пределы кэша
+        k_clamped = torch.clamp(k, self.k_min + 1e-5, self.k_max - 1e-5)
+        idx_float = (k_clamped - self.k_min) / self.dk
+        idx = torch.floor(idx_float).long()
+        w = idx_float - idx
         
         def lerp(tensor):
-            if tensor.dim() == 2:
-                return tensor[idx_floor] * (1 - w.unsqueeze(-1)) + tensor[idx_floor+1] * w.unsqueeze(-1)
-            else:
-                return tensor[idx_floor] * (1 - w.unsqueeze(-1).unsqueeze(-1)) + tensor[idx_floor+1] * w.unsqueeze(-1).unsqueeze(-1)
+            return tensor[idx] * (1 - w) + tensor[idx+1] * w
 
         return lerp(self.beta), lerp(self.db_dk), lerp(self.I1), lerp(self.I2), lerp(self.J0), lerp(self.J1)
 
-    def get_C_matrix(self, k, dk, d2k, Phi):
-        b, db, i1, i2, j0, j1 = self.interpolate_cache(k)
-        beta_m = b.unsqueeze(1) # shape: [Batch, N, 1]
+    def forward(self, L, k_ctrl):
+        ode_func = WaveguideODE(self, k_ctrl, L)
         
-        # Растягиваем скаляры dk, d2k до нужной размерности
-        dk = dk.unsqueeze(-1).unsqueeze(-1)
-        d2k = d2k.unsqueeze(-1).unsqueeze(-1)
+        # Начальные условия
+        U0 = torch.eye(self.N, dtype=torch.complex128, device=self.device)
+        Phi0 = torch.zeros(self.N, dtype=torch.float64, device=self.device)
         
-        G = 2j * torch.diag_embed(b) + 2 * dk * i1 - dk * j0
-        Q = 1j * dk * torch.diag_embed(db) + (dk**2) * i2 + (d2k + 2j * beta_m * dk) * i1 - (dk**2) * j1 - 1j * beta_m * dk * j0
+        # Точки, в которых нам нужен результат (начало и конец волновода)
+        s_span = torch.tensor([0.0, L], dtype=torch.float64, device=self.device)
         
-        # Пакетное (Batched) решение системы: G * C_raw = -Q
-        C_raw = torch.linalg.solve(G, -Q)
+        # ЗАПУСК АДАПТИВНОГО ИНТЕГРАТОРА DOPRI5 (Адаптивный Рунге-Кутта)
+        Y_final = odeint(ode_func, (U0, Phi0), s_span, method='dopri5', rtol=1e-4, atol=1e-5)
         
-        # Симметризация
-        K = 0.5 * (C_raw - C_raw.mH)
-        loss_diag = torch.diag_embed(torch.abs(torch.imag(b)))
-        K_lossy = K - loss_diag
+        # Извлекаем состояние в точке L (последний элемент тензора)
+        U_end = Y_final[0][-1]
+        Phi_end = Y_final[1][-1]
         
-        phase_mat = torch.exp(1j * (Phi.unsqueeze(-1) - Phi.unsqueeze(-2)))
-        return K_lossy * phase_mat, torch.real(b)
-
-    def forward(self, L, P_ctrl):
-        ds = L / self.num_steps
+        # Добавляем динамическую фазу
+        phase_out = torch.exp(1j * Phi_end)
+        U_physical = phase_out.unsqueeze(1) * U_end
         
-        # Генерируем гладкие кривые Безье
-        k_vals, dk_dt, d2k_dt2 = self.bezier_curve(P_ctrl, self.num_steps)
-        
-        # Пересчитываем производные по t в производные по s (ds = L * dt)
-        dk_vals = dk_dt / L
-        d2k_vals = d2k_dt2 / (L**2)
-        
-        U = torch.eye(self.N, dtype=torch.complex128, device=self.device)
-        Phi = torch.zeros(self.N, dtype=torch.float64, device=self.device)
-        
-        for i in range(self.num_steps):
-            k = k_vals[i].unsqueeze(0)
-            dk = dk_vals[i].unsqueeze(0)
-            d2k = d2k_vals[i].unsqueeze(0)
+        if self.training:
+            return U_physical
+        else:
+            # Восстанавливаем плотный вектор кривизны чисто для красивых графиков
+            num_points = 400
+            segments = len(k_ctrl) - 3
+            t_global = torch.linspace(0, segments - 1e-5, num_points, dtype=torch.float64, device=self.device)
+            idx = torch.floor(t_global).long()
+            t = (t_global - idx).unsqueeze(1)
             
-            # RK4
-            C1, dP1 = self.get_C_matrix(k, dk, d2k, Phi.unsqueeze(0))
-            C1, dP1 = C1[0], dP1[0]
-            k1_U = torch.matmul(C1, U)
+            P_window = torch.stack([k_ctrl[idx], k_ctrl[idx+1], k_ctrl[idx+2], k_ctrl[idx+3]], dim=1)
+            T = torch.cat([t**3, t**2, t, torch.ones_like(t)], dim=1)
+            M = ode_func.M
             
-            C2, dP2 = self.get_C_matrix(k, dk, d2k, (Phi + dP1 * ds/2).unsqueeze(0))
-            C2, dP2 = C2[0], dP2[0]
-            k2_U = torch.matmul(C2, U + k1_U * ds/2)
+            M_P = torch.matmul(M, P_window.unsqueeze(-1)).squeeze(-1)
+            k_dense = torch.sum(T * M_P, dim=1)
             
-            C3, dP3 = self.get_C_matrix(k, dk, d2k, (Phi + dP2 * ds/2).unsqueeze(0))
-            C3, dP3 = C3[0], dP3[0]
-            k3_U = torch.matmul(C3, U + k2_U * ds/2)
-            
-            C4, dP4 = self.get_C_matrix(k, dk, d2k, (Phi + dP3 * ds).unsqueeze(0))
-            C4, dP4 = C4[0], dP4[0]
-            k4_U = torch.matmul(C4, U + k3_U * ds)
-            
-            U = U + (ds / 6.0) * (k1_U + 2*k2_U + 2*k3_U + k4_U)
-            Phi = Phi + (ds / 6.0) * (dP1 + 2*dP2 + 2*dP3 + dP4)
-            
-        return U
+            return U_physical, k_dense

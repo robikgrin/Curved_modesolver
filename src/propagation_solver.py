@@ -69,41 +69,33 @@ class ModePropagator:
         wg, beta, db_dk, U, dU_dk, d2U_dk2 = self.get_derivatives(kappa)
         
         N, Q = wg.N, wg.Q
-        dS = wg.d_X * wg.d_Y # Элемент площади d\rho'
+        dS = wg.d_X * wg.d_Y
 
         # Строим плоский массив координаты \xi, вытянутый для N*Q ячеек
         x_ticks = np.linspace(-wg.W/2 - wg.delta_l, wg.W/2 + wg.delta_r, N)
         xi_2d = np.tile(x_ticks, (Q, 1))
         xi_flat = xi_2d.flatten()
         
-        # Так как вектор U содержит 3 компоненты (E_xi, E_eta, E_s), 
-        # нам нужно утроить массив xi, чтобы перемножать поэлементно
+
         xi_full = np.tile(xi_flat, 3) 
         
-        # Геометрический множитель для интегралов J
         geom_factor = xi_full / (1 + kappa * xi_full)
 
-        # Инициализируем пустые матрицы (dtype=complex, т.к. поля комплексные)
         I1 = np.zeros((self.num_modes, self.num_modes), dtype=complex)
         I2 = np.zeros((self.num_modes, self.num_modes), dtype=complex)
         J0 = np.zeros((self.num_modes, self.num_modes), dtype=complex)
         J1 = np.zeros((self.num_modes, self.num_modes), dtype=complex)
 
-        # Считаем интегралы. np.vdot работает как \int A* B d\rho'
         for n in range(self.num_modes):
             U_n_conj = np.conj(U[:, n])
             
             for m in range(self.num_modes):
-                # I_nm^(1) = \int U_n^* (\partial U_m / \partial \kappa) d\rho'
                 I1[n, m] = np.sum(U_n_conj * dU_dk[:, m]) * dS
                 
-                # I_nm^(2) = \int U_n^* (\partial^2 U_m / \partial \kappa^2) d\rho'
                 I2[n, m] = np.sum(U_n_conj * d2U_dk2[:, m]) * dS
                 
-                # J_nm^(0) = \int (\xi / (1+\kappa\xi)) * U_n^* * U_m d\rho'
                 J0[n, m] = np.sum(geom_factor * U_n_conj * U[:, m]) * dS
                 
-                # J_nm^(1) = \int (\xi / (1+\kappa\xi)) * U_n^* * (\partial U_m / \partial \kappa) d\rho'
                 J1[n, m] = np.sum(geom_factor * U_n_conj * dU_dk[:, m]) * dS
 
         return {
@@ -144,7 +136,6 @@ class ModePropagator:
         print(f"\nУстановлено рабочее количество мод: {physical_count}")
         print("="*40 + "\n")
         
-        # Фиксируем правильное число мод для дальнейших расчетов кэша
         self.num_modes = physical_count
         return physical_count
     
@@ -153,7 +144,6 @@ class ModePropagator:
         print(f"Начинаем тяжелый расчет матриц для {len(kappa_array)} значений kappa...")
         data = {key: [] for key in ['beta', 'db_dk', 'I1', 'I2', 'J0', 'J1']}
         
-        # Оборачиваем цикл в tqdm для красивого прогресс-бара
         for k in tqdm(kappa_array, desc="Расчет мод и интегралов", unit="точек"):
             res = self.compute_integrals(k)
             for key in data.keys():

@@ -1,4 +1,3 @@
-
 import numpy as np
 import seaborn as sns
 import pandas as pd
@@ -86,46 +85,6 @@ class rect_WG:
             Overlap calculations between all modes for defined overlap formula
     '''
     def __init__(self, wavelength=1.55E-6, n_clad=1.444, n_core=3.4755, d_xi=0.02E-6, d_eta=0.02E-6, W=2E-6, H = 0.22E-6, delta_l=2E-6, delta_r=2E-6, delta_u=2E-6, delta_d=2E-6, kappa=0):
-        r'''Sets the initial parameters of waveguide structure for eigenmode calculation
-
-        Parameters
-        -----------
-        ``wavelength`` : float
-                Wavelength of input electromagnetic wave. ``wavelength = 1.55E-6`` as default
-        
-        ``n_clad`` : float
-                Refractive index of cladding ( ``n_clad = 1.444`` as default (SiO2 cladding) )
-
-        ``n_core`` : float
-                Refractive index of core ( ``n_core = 3.4755`` as default (Si core) )
-
-        ``d_xi`` : float
-                Simulation step in ``xi`` direction ( ``d_xi = 0.02E-6`` as default)
-
-        ``d_xi`` : float
-                Simulation step in ``eta`` drection ( ``d_eta = 0.02E-6`` as default)
-
-        ``W`` : float
-                Width of Si core ( ``W = 2E-6`` as default)
-
-        ``H`` : float
-                Height of Si core (``H = 0.22E-6`` as default)
-
-        ``delta_l`` : float
-                Distance to the left border of simulation (``delta_l = 2E-6`` as default)
-
-        ``delta_r`` : float
-                Distance to the right border of simulation (``delta_r = 2E-6`` as default)
-
-        ``delta_u`` : float
-                Distance to the upper border of simulation (``delta_u = 2E-6`` as default)
-
-        ``delta_d`` : float
-                Distance to the down border of simulation (``delta_d = 2E-6`` as default)
-
-        ``kappa`` : float
-                Curvature value (``kappa = 0`` as default)
-        '''
         self.k0 = 2*np.pi/wavelength
         self.n_clad = n_clad
         self.n_core = n_core
@@ -147,18 +106,18 @@ class rect_WG:
         self.delta_u = delta_u
         self.delta_d = delta_d
 
-        x_size = delta_r + delta_l + W  #size of full location in \xi direction
-        y_size = H + delta_u + delta_d #size of full location in \eta direction
+        x_size = delta_r + delta_l + W  
+        y_size = H + delta_u + delta_d 
 
-        N = int(x_size/d_xi) - 1  #number of grids in \xi direction (horizontal direction)
-        Q = int(y_size/d_eta) - 1 #number of grids in \eta direction (vertical direction)
+        N = int(x_size/d_xi) - 1  
+        Q = int(y_size/d_eta) - 1 
 
         ### Silicon structure ###'
 
-        n_l = int(self.delta_l/d_xi) #left-up grid (\xi number)
-        q_u = int(self.delta_u/d_eta) #lef-up grid (\eta number)
-        n_r = int((W+self.delta_l)/d_xi) #right-down grid (\xi number)
-        q_d = int((self.delta_u + H)/d_eta) #right-down grid (\eta number)
+        n_l = int(self.delta_l/d_xi) 
+        q_u = int(self.delta_u/d_eta) 
+        n_r = int((W+self.delta_l)/d_xi) 
+        q_d = int((self.delta_u + H)/d_eta) 
 
         self.n_l = n_l
         self.n_r = n_r
@@ -199,17 +158,9 @@ class rect_WG:
         self.t_xi = 1 + kappa * _xi_
     
     def set_width(self, W:float):
-        r'''Set width of core value
-
-        Parameters
-        ----------
-        ``W`` : float
-                New width value
-        '''
         self.W = W
 
     def draw_structure(self):
-        r'''Draw refractive index profile of defined waveguide structure'''
         x_ticks = np.linspace(-self.W/2 - self.delta_l, self.W/2 + self.delta_r, self.N)
         y_ticks = np.linspace(-self.H/2 - self.delta_d, self.H/2 + self.delta_u, self.Q)
         X, Y = np.meshgrid(x_ticks * 1e6, y_ticks * 1e6)
@@ -225,7 +176,6 @@ class rect_WG:
         plt.show()
 
     def draw_permittivity_profile(self):
-        r'''Draw permittivity profiles ``ex, ey, ez``, calculated by index averaging technique'''
         x_ticks = np.linspace(-self.W/2 - self.delta_l, self.W/2 + self.delta_r, self.N)
         y_ticks = np.linspace(-self.H/2 - self.delta_d, self.H/2 + self.delta_u, self.Q)
         X, Y = np.meshgrid(x_ticks * 1e6, y_ticks * 1e6)
@@ -246,37 +196,24 @@ class rect_WG:
             plt.show()
     
     def get_grid_info(self):
-        r'''Get information about number of grids in xi direction ``N``, eta direction ``Q``, upper-left grid coordinate of Si core ``n_left, q_up``, lower-rigth grid of Si core ``n_rigth, q_down``
-        '''
         n_l = self.n_l
         q_u = self.q_u
         n_r = self.n_core
         q_d = self.q_d
 
         print(f'Number of grids in xi direction: N = {self.N} \nNumber of grids in eta direction: Q = {self.Q}')
-
         print(f"The (n,q) value for left upper grid of Si: ({n_l}, {q_u})")
         print(f"The (n,q) value for the right lower grid of Si: ({n_r}, {q_d})")
 
     def get_PML(self, NPML):
-        r'''Setting PML 
-
-        Parameters
-        ------------
-        ``NPML`` : list or ndarray
-                The size of PML layer in each direcion ``[x_left, x_right, y_down, y_up]``
-        '''
         # x axis
         sx = np.ones((self.Q, self.N), dtype=complex)
         
-        # Левый PML
         n_left = np.arange(NPML[0])
         profile_left = (1 + 3 * ((NPML[0] - n_left) / NPML[0])**3) * \
                        (1 + 1j * self.n_clad * (np.sin(np.pi * (NPML[0] - n_left) / (2 * NPML[0])))**2)
-        # Для строк NumPy сам умеет "растягивать" вектор по вертикали
         sx[:, :NPML[0]] = profile_left
         
-        # Правый PML
         n_right = np.arange(self.N - NPML[1], self.N)
         profile_right = (1 + 3 * ((n_right - (self.N - NPML[1])) / NPML[1])**3) * \
                         (1 + 1j * self.n_clad * (np.sin(np.pi * (n_right - (NPML[1] + self.N)) / (2 * NPML[1])))**2)
@@ -285,14 +222,11 @@ class rect_WG:
         # y axis
         sy = np.ones((self.Q, self.N), dtype=complex)
         
-        # Верхний PML (или нижний, в зависимости от твоей системы координат)
         q_up = np.arange(self.Q - NPML[2], self.Q)
         profile_up = (1 + 3 * ((q_up - (self.Q - NPML[2])) / NPML[2])**3) * \
                      (1 + 1j * self.n_clad * (np.sin(np.pi * (q_up - (self.Q - NPML[2])) / (2 * NPML[2])))**2)
-        # Превращаем 1D вектор в вектор-столбец с помощью [:, None], чтобы размножить по горизонтали
         sy[-NPML[2]:, :] = profile_up[:, None]
 
-        # Нижний PML
         q_down = np.arange(NPML[3])
         profile_down = (1 + 3 * ((NPML[3] - q_down) / NPML[3])**3) * \
                        (1 + 1j * self.n_clad * (np.sin(np.pi * (NPML[3] - q_down) / (2 * NPML[3])))**2)
@@ -302,7 +236,6 @@ class rect_WG:
         self.sy = sy
     
     def draw_PML(self, proj:str):
-        r'''Visualization of PML components for defined projection: imaginary and real part'''
         x_ticks = np.linspace(-self.W/2 - self.delta_l, self.W/2 + self.delta_r, self.N)
         y_ticks = np.linspace(-self.H/2 - self.delta_d, self.H/2 + self.delta_u, self.Q)
         X, Y = np.meshgrid(x_ticks * 1e6, y_ticks * 1e6)
@@ -332,60 +265,36 @@ class rect_WG:
     @staticmethod
     def U_xx(_N: int, _Q: int, D_X: float):
         size = _N * _Q
-        
-        # Создаем массивы для диагоналей
         main_diag = np.full(size, -1.0 / D_X)
         up_diag = np.full(size - 1, 1.0 / D_X)
-        
-        # Обнуляем элементы на границах строк, чтобы производная 
-        # по X не "перепрыгивала" на следующий ряд по Y
         up_diag[_N - 1 :: _N] = 0.0 
-        
-        # Твое краевое условие для последнего элемента
         main_diag[-1] = 1.0 / D_X 
-
-        # Собираем разреженную матрицу одним вызовом
         return diags([main_diag, up_diag], offsets=[0, 1], format='csc', dtype=complex)
 
     @staticmethod
     def U_yy(_N: int, _Q: int, D_Y: float):
         size = _N * _Q
-        
-        # Главная диагональ
         main_diag = np.full(size, -1.0 / D_Y)
-        # Верхняя диагональ (сдвиг на _N, так как берем соседнюю ячейку по Y)
         up_diag = np.full(size - _N, 1.0 / D_Y)
-        
         return diags([main_diag, up_diag], offsets=[0, _N], format='csc', dtype=complex)
 
     @staticmethod
     def V_xx(_N: int, _Q: int, D_X: float):
         size = _N * _Q
-        
-        # Главная диагональ
         main_diag = np.full(size, 1.0 / D_X)
-        # Нижняя диагональ (сдвиг -1)
         low_diag = np.full(size - 1, -1.0 / D_X)
-        
-        # Обнуляем элементы на границах строк, чтобы производная не "перепрыгивала" по Y
         low_diag[_N - 1 :: _N] = 0.0 
-        
         return diags([low_diag, main_diag], offsets=[-1, 0], format='csc', dtype=complex)
 
     @staticmethod
     def V_yy(_N: int, _Q: int, D_Y: float):
         size = _N * _Q
-        
-        # Главная диагональ
         main_diag = np.full(size, 1.0 / D_Y)
-        # Нижняя диагональ (сдвиг на -_N)
         low_diag = np.full(size - _N, -1.0 / D_Y)
-        
         return diags([low_diag, main_diag], offsets=[-_N, 0], format='csc', dtype=complex)
 
     @staticmethod
     def S_xi(_N: int, _Q: int, _sx, _sy, _t_xi):
-        # Автоматическое умножение 2D массива на 1D вектор и вытягивание в линию
         main_diag = ((_sy / _sx) * _t_xi).flatten()
         return diags([main_diag], offsets=[0], format='csc', dtype=complex)
 
@@ -424,66 +333,59 @@ class rect_WG:
         return diags([main_diag], offsets=[0], format='csc', dtype=complex)
 
     def A_xx(self):
-        # Главная диагональ: дублируем массив -t_xi / d_X ровно Q раз
         main_diag = np.tile(-self.t_xi / self.d_X, self.Q)
-        main_diag[-1] = self.t_xi[-1] / self.d_X  # Твое краевое условие
-        
-        # Верхняя диагональ: берем тот же массив, но со сдвигом +1 (срез [1:])
+        main_diag[-1] = self.t_xi[-1] / self.d_X  
         up_diag = np.tile(self.t_xi / self.d_X, self.Q)[1:]
-        # Обнуляем переходы между строками
         up_diag[self.N - 1 :: self.N] = 0.0
-        
         return diags([main_diag, up_diag], offsets=[0, 1], format='csc', dtype=complex)
 
     def A_yy(self):
-        # Главная диагональ
         main_diag = np.tile(-self.t_xi / self.d_Y, self.Q)
-        
-        # Верхняя диагональ (сдвиг +N, поэтому дублируем на 1 раз меньше: Q-1)
         up_diag = np.tile(self.t_xi / self.d_Y, self.Q - 1)
-        
         return diags([main_diag, up_diag], offsets=[0, self.N], format='csc', dtype=complex)
 
     def C_xx(self):
-        # Главная диагональ
         main_diag = np.tile(self.t_xi / self.d_X, self.Q)
-        
-        # Нижняя диагональ: сдвиг -1, поэтому срез [:-1]
         low_diag = np.tile(-self.t_xi / self.d_X, self.Q)[:-1]
-        # Обнуляем переходы между строками
         low_diag[self.N - 1 :: self.N] = 0.0
-        
         return diags([low_diag, main_diag], offsets=[-1, 0], format='csc', dtype=complex)
 
     def C_yy(self):
-        # Главная диагональ
         main_diag = np.tile(self.t_xi / self.d_Y, self.Q)
-        
-        # Нижняя диагональ (сдвиг -N, дублируем на 1 раз меньше: Q-1)
         low_diag = np.tile(-self.t_xi / self.d_Y, self.Q - 1)
-        
         return diags([low_diag, main_diag], offsets=[-self.N, 0], format='csc', dtype=complex)
 
-    def FDE(self, num: int, NPML: list = None, v0 = None):
-        r'''Finite-difference eigensolver, which calculates eigenmodes and eigenvalues of curved waveguide
+    def calculate_mode_metrics(self, mode_idx):
+        r'''Считает фактор удержания и TE-фракцию для конкретной найденной моды'''
+        # Вытаскиваем сырые векторы полей
+        E_x = self.vecs[:self.N*self.Q, mode_idx]
+        E_y = self.vecs[self.N*self.Q : 2*self.N*self.Q, mode_idx]
         
-        Parameters
-        --------
-        num : int 
-                number of calculating modes
-        NPML : list
-                The size of PML layer in each direcion [x_left, x_right, y_down, y_up]
-        '''
-        # Если NPML не передали при вызове, ставим твои старые значения по умолчанию
+        # Энергия электрического поля (без учета E_z для скорости)
+        intensity = np.abs(E_x)**2 + np.abs(E_y)**2
+        intensity = intensity.reshape(self.Q, self.N)
+        
+        total_power = np.sum(intensity)
+        if total_power == 0:
+            return 0.0, 0.0
+            
+        # 1. Считаем Confinement Factor (мощность внутри ядра Si)
+        core_power = np.sum(intensity[self.q_u:self.q_d, self.n_l:self.n_r])
+        confinement = core_power / total_power
+        
+        # 2. Считаем TE-fraction (доля горизонтальной поляризации)
+        te_power = np.sum(np.abs(E_x)**2)
+        te_fraction = te_power / np.sum(np.abs(E_x)**2 + np.abs(E_y)**2)
+        
+        return confinement, te_fraction
+
+    def FDE(self, num: int, NPML: list = None, v0 = None):
         if NPML is None:
             NPML = [150, 150, 60, 60]
 
         U_x, U_y, V_x, V_y = self.U_xx(self.N, self.Q, self.d_X), self.U_yy(self.N, self.Q, self.d_Y), self.V_xx(self.N, self.Q, self.d_X), self.V_yy(self.N, self.Q, self.d_Y)
 
-        A_x = self.A_xx()
-        A_y = self.A_yy()
-        C_x = self.C_xx()
-        C_y = self.C_yy()
+        A_x, A_y, C_x, C_y = self.A_xx(), self.A_yy(), self.C_xx(), self.C_yy()
         
         self.get_PML(NPML)
         
@@ -495,33 +397,72 @@ class rect_WG:
         P_yx = -(S_xi + A_y @ inv_T_s @ V_y) @ C_x @ inv_S_s @ U_y + A_y @ inv_T_s @ V_x @ (T_xi + C_y @ inv_S_s @ U_y)
         P_yy = (T_eta + C_x @ inv_S_s @ U_x) @ (S_xi + A_y @ inv_T_s @ V_y) - A_y @ inv_T_s @ V_x @ C_y @ inv_S_s @ U_x
         
-        P = bmat([[P_xx, P_xy], 
-                  [P_yx, P_yy]], format='csc')
+        P = bmat([[P_xx, P_xy], [P_yx, P_yy]], format='csc')
 
-        ### EIGENVALUES ###
+       ### ПОИСК С ИЗБЫТКОМ ###
+        # Просим солвер найти в 3 раза больше мод, чем нам нужно
+        search_num = num * 3 
         target_neff_sq = self.n_core**2
+        
         if v0 is None:
-            vals, vecs = eigs(P, k=num, sigma=target_neff_sq, which='LM')
+            vals, vecs = eigs(P, k=search_num, sigma=target_neff_sq, which='LM')
         else:
-            vals, vecs = eigs(P, k=num, sigma=target_neff_sq, which='LM', v0=v0)
-        n_eff = np.sqrt(vals)
-        self.n_eff = n_eff
-        self.vecs = vecs
+            vals, vecs = eigs(P, k=search_num, sigma=target_neff_sq, which='LM', v0=v0)
+            
+        raw_neff = np.sqrt(vals)
+        self.vecs = vecs 
+        
+        ### ФИЛЬТРАЦИЯ С ПРОВЕРКОЙ НА УНИКАЛЬНОСТЬ ###
+        good_indices = []
+        for i in range(search_num):
+            conf, te_frac = self.calculate_mode_metrics(i)
+            # Оставляем только локализованные TE-моды
+            if conf > 0.1 and te_frac > 0.8:
+                good_indices.append(i)
+        
+        # Сортируем по убыванию n_eff (сначала фундаментальная мода)
+        good_indices = sorted(good_indices, key=lambda idx: np.real(raw_neff[idx]), reverse=True)
+        
+        unique_indices = []
+        for idx in good_indices:
+            n_current = np.real(raw_neff[idx])
+            
+            # Проверяем, нет ли уже моды с таким же n_eff в нашей корзине
+            is_unique = True
+            for u_idx in unique_indices:
+                n_accepted = np.real(raw_neff[u_idx])
+                # Физические моды (TE0, TE1) отличаются по n_eff минимум на 0.05.
+                # Если разница меньше 0.005 - это гарантированно математический дубликат.
+                if np.abs(n_current - n_accepted) < 0.005: 
+                    is_unique = False
+                    break
+            
+            if is_unique:
+                unique_indices.append(idx)
+                
+            # Если мы набрали нужное количество уникальных мод, останавливаемся
+            if len(unique_indices) == num:
+                break
+                
+        if len(unique_indices) < num:
+            print(f"ВНИМАНИЕ: Найдено только {len(unique_indices)} уникальных TE-мод, а запрошено {num}!")
+            # Если волновод слишком узкий и физически не поддерживает 4 моды,
+            # мы добиваем массив дубликатами, чтобы программа не упала из-за размерностей.
+            unique_indices = (unique_indices + good_indices)[:num]
+            
+        final_indices = unique_indices[:num]
+        
+        # Перезаписываем отфильтрованные значения
+        self.n_eff = raw_neff[final_indices]
+        self.vecs = vecs[:, final_indices]
+        
+        print(f"Отфильтровано {num} уникальных TE-мод.")
+        for i in range(num):
+            # Передаем новый индекс i, так как self.vecs уже имеет размер num
+            conf, te_frac = self.calculate_mode_metrics(i)
+            print(f"Мода {i+1}: n_eff = {np.real(self.n_eff[i]):.4f}, Conf = {conf*100:.1f}%, TE = {te_frac*100:.1f}%")
 
     def get_field(self, mode_num:int):
-        r'''Calculating the field projections for each projection for defined mode
-
-        Parameters
-        -----------
-        mode : int
-                Mode number
-
-        Return:
-        -----------------
-        ``E_x, E_y, E_z, H_x, H_y, H_z`` - density profile output in matrix ``Q * N`` form
-
-        ``h_x, h_y`` - magnetic density projections for ``xi`` and ``eta`` axes
-        '''
         U_x, U_y, V_x, V_y = self.U_xx(self.N, self.Q, self.d_X), self.U_yy(self.N, self.Q, self.d_Y), self.V_xx(self.N, self.Q, self.d_X), self.V_yy(self.N, self.Q, self.d_Y)
         
         C_x, C_y = self.C_xx(), self.C_yy()
@@ -533,7 +474,7 @@ class rect_WG:
         h_z = 1j * inv_S_s @ (-U_y @ self.vecs[:self.N*self.Q, mode_num-1] + U_x @ self.vecs[self.N*self.Q : 2*self.N*self.Q, mode_num-1])
 
         e_z = 1j * inv_T_s @ (V_y @ h_x - V_x @ h_y)
-        #in matrix form
+        
         E_x = np.zeros((self.Q, self.N), dtype=complex)
         E_y = np.zeros((self.Q, self.N), dtype=complex)
         E_z = np.zeros((self.Q, self.N), dtype=complex)
@@ -554,61 +495,38 @@ class rect_WG:
         return E_x, E_y, E_z, H_x, H_y, H_z, h_x, h_y
 
     def get_E_field(self, mode_num:int):
-        r'''Electric density prjections normalizator
-
-        Parameters
-        ----------
-        ``mode`` : int 
-                mode number 
-        ``scale`` : str 
-                scaling format for data visualization (`log` or `norm`)
-
-        Return:
-        -----------------
-        ``E_field`` - density profile output with three components in one vector
-        '''
         size = self.N * self.Q
 
-        # Генерируем операторы (В будущем их лучше вынести в __init__, чтобы не пересчитывать каждый раз)
         U_x, U_y = self.U_xx(self.N, self.Q, self.d_X), self.U_yy(self.N, self.Q, self.d_Y)
         V_x, V_y = self.V_xx(self.N, self.Q, self.d_X), self.V_yy(self.N, self.Q, self.d_Y)
         C_x, C_y = self.C_xx(), self.C_yy()
         T_xi, T_eta, inv_T_s = self.T_xi(), self.T_eta(),  self.inv_T_s()
         inv_S_s = self.inv_S_s(self.N, self.Q, self.sx, self.sy)
 
-        # Вытаскиваем сразу ВСЕ нужные моды (форма матриц: size x mode_num)
         vecs_x = self.vecs[:size, :mode_num]
         vecs_y = self.vecs[size : 2*size, :mode_num]
 
-        # Инвертированный n_eff для всей пачки мод сразу
         n_inv = 1.0 / self.n_eff[:mode_num]
 
-        # Считаем h_x и h_y матрично для всех мод сразу. 
-        # Скобки расставлены так, чтобы вычислять "справа налево" — это в разы быстрее!
         h_x = (C_x @ (inv_S_s @ (U_y @ vecs_x)) - (T_eta + C_x @ inv_S_s @ U_x) @ vecs_y) * n_inv
         h_y = ((T_xi + C_y @ inv_S_s @ U_y) @ vecs_x - C_y @ (inv_S_s @ (U_x @ vecs_y))) * n_inv
 
-        # e_z для всех мод
         e_z = 1j * inv_T_s @ (V_y @ h_x - V_x @ h_y)
 
-        # Считаем норму вдоль столбцов (axis=0) сразу для всех мод
         norm_sq = np.sum(np.abs(vecs_x)**2, axis=0) + \
                   np.sum(np.abs(vecs_y)**2, axis=0) + \
                   np.sum(np.abs(e_z)**2, axis=0)
         norm = np.sqrt(norm_sq * self.d_X * self.d_Y)
         
-        # Нормируем компоненты
         vec_norm_x = vecs_x / norm
         vec_norm_y = vecs_y / norm
         vec_norm_z = e_z / norm
 
-        # Собираем в итоговую матрицу (форма: 3*size x mode_num)
         E_field = np.vstack((vec_norm_x, vec_norm_y, vec_norm_z))
         
         return E_field
 
     def draw_field(self, mode:int, scale:str):
-        r'''Draw a density field projections for both electric and magnetic density profiles...'''
         from matplotlib.colors import LogNorm, Normalize
         
         x_ticks = np.linspace(-self.W/2 - self.delta_l, self.W/2 + self.delta_r, self.N)
@@ -626,20 +544,14 @@ class rect_WG:
                                gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios': [5, 5],
                                             'wspace': 0.2, 'hspace': 0.4})
 
-        # Твоя оригинальная шапка
         fig.suptitle(r'Field projections for ' + str(mode) +  r' mode : $n_{eff}$ =' + str(np.round(self.n_eff[mode-1], 3)) + r", $\kappa = $" + str(self.kappa) + r" $\mu m^{-1}$", fontsize=20)
 
         for i in range(2):
             for j in range(3):
                 ax = axs[i, j]
-                
-                # Создаем новый нормализатор для КАЖДОГО графика внутри цикла!
                 norm = LogNorm() if scale == 'log' else Normalize()
                 
-                # Отрисовка поля
                 c = ax.pcolormesh(X, Y, np.abs(fields[i][j]), cmap='jet', shading='auto', norm=norm)
-                
-                # Твои подписи
                 ax.set_title(titles[i][j], fontsize=15)
                 ax.set_xlabel(r'$\xi$ coordinate, $\mu m$')
                 ax.set_ylabel(r'$\eta$ coordinate, $\mu m$')
@@ -649,7 +561,6 @@ class rect_WG:
         plt.show()
 
     def draw_E_field(self, mode:int, scale:str):
-        r'''Draw a electric density field projections for orthonormal curvilinear axes...'''
         from matplotlib.colors import LogNorm, Normalize
         
         x_ticks = np.linspace(-self.W/2 - self.delta_l, self.W/2 + self.delta_r, self.N)
@@ -668,14 +579,11 @@ class rect_WG:
                                gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios': [5],
                                             'wspace': 0.2, 'hspace': 0.4})
 
-        # Твоя оригинальная шапка
         fig.suptitle(r'Field projections for ' + str(mode) +  r' mode : $n_{eff}$ =' + str(np.round(self.n_eff[mode-1], 3)) + r", $\kappa = $" + str(self.kappa) + r" $\mu m^{-1}$", fontsize=20)
 
         for j in range(3):
             ax = axs[j]
             data_to_plot = np.abs(fields[j])**2 if scale == 'norm' else np.abs(fields[j])
-            
-            # Создаем новый нормализатор для КАЖДОГО графика внутри цикла!
             norm = LogNorm() if scale == 'log' else Normalize()
             
             c = ax.pcolormesh(X, Y, data_to_plot, cmap='jet', shading='auto', norm=norm)
@@ -696,21 +604,6 @@ class rect_WG:
         return np.dot(x, np.conj(y))
     
     def get_overlap(self, num:int, lap_type: str):
-        r'''Overlap calculations between all modes for defined overlap formula
-
-        Parameters
-        ----------
-        ``num`` : int
-                Number of calculated modes from ``FDE(num)`` function
-        
-        ``lap_type`` : str
-                Overlap formula defining: ``lumerical`` - ANSYS Lumerical formula, ``classic`` - classical overlap formula
-
-        Return
-        ------
-        ``res`` : pd.Dataframe
-                Overlap dataframe for all modes
-        '''
         G_mat = np.zeros((num, num), dtype=float)
         if lap_type == 'lumerical':
             for m in range(1, num+1):
@@ -737,7 +630,7 @@ class rect_WG:
 
                     G_mat[m-1, n-1] = np.abs(upper/down)/self.k0
                     G_mat[n-1, m-1] = G_mat[m-1, n-1]    
-        #plotting
+        
         mat = np.copy(G_mat)
         
         for i in range(num):

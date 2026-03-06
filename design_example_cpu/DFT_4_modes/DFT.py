@@ -22,17 +22,17 @@ from propagation_solver import ModePropagator
 params = {
     'wavelength': 1.55, 'n_clad': 1.444, 'n_core': 3.4755,
     'W': 2, 'H': 0.22, 'd_xi': 0.05, 'd_eta': 0.05,
-    'delta_u': 4.0, 'delta_d': 4.0, 'delta_l': 4.0, 'delta_r': 4.0 
+    'delta_u': 2.0, 'delta_d': 2.0, 'delta_l': 4.0, 'delta_r': 4.0 
 }
 
 # Микрометровый масштаб
 N_modes = 4
 propagator = ModePropagator(wg_params=params, num_modes=N_modes, NPML=[20, 20, 20, 20], d_kappa=0.001)
 
-CACHE_FILE = "wg_cache_micro.npz"
+CACHE_FILE = "wg_cache_micro_4_modes.npz"
 if not os.path.exists(CACHE_FILE):
     print("Создание нового кэша матриц (СИ - микрометры)...")
-    k_array = np.linspace(-0.17, 0.17, 35) # Безопасный диапазон без сингулярностей
+    k_array = np.linspace(-0.12, 0.12, 35) # Безопасный диапазон без сингулярностей
     propagator.calculate_and_save_cache(k_array, filename=CACHE_FILE)
 
 print("Загрузка Мега-сплайна...")

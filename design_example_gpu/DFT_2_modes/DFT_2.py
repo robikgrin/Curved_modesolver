@@ -30,19 +30,35 @@ from propagation_solver import ModePropagator
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Вычисления запущены на: {device}")
 
-CACHE_FILE = "wg_cache_micro_4_modes.npz" 
-L = 100.0
-num_steps = 1000
-N_modes = 3
+params = {
+    'wavelength': 1.55, 'n_clad': 1.444, 'n_core': 3.4755,
+    'W': 1, 'H': 0.22, 'd_xi': 0.05, 'd_eta': 0.05,
+    'delta_u': 4.0, 'delta_d': 4.0, 'delta_l': 4.0, 'delta_r': 4.0 
+}
 
-solver = TorchModePropagator(CACHE_FILE, num_steps=num_steps, device=device)
+CACHE_FILE = "wg_W1_N2.npz" 
+L = 100.0        # Увеличим длину, чтобы дать свету место для перекачки 50/50
+num_steps = 1000 # ОЧЕНЬ ВАЖНО: ds = 0.1 мкм. Только так RK4 выживет!
+N_modes = 2
+
+NPML_l = [20, 20, 20, 20]
+
+propagator =  ModePropagator(wg_params=params, num_modes=N_modes, NPML=NPML_l, d_kappa=0.001)
+
+if not os.path.exists(CACHE_FILE):
+    k_array = np.linspace(-0.17, 0.17, 35)
+    propagator.calculate_and_save_cache(k_array, filename=CACHE_FILE)
+
+solver = TorchModePropagator(CACHE_FILE, device=device)
 
 # --- ПАРАМЕТРИЗАЦИЯ ВОЛНОВОДА ---
-N_ctrl = 100
-# Инициализация небольшим шумом для "сырых" весов
-initial_raw = torch.randn(N_ctrl, dtype=torch.float64, device=device) * 0.5
-k_raw = nn.Parameter(initial_raw)
+N_ctrl = 20 # 60 точек достаточно для гибкости, 100 - это перебор
 
+# НАЧИНАЕМ С ПЛАВНОЙ КРИВОЙ, А НЕ СО СЛУЧАЙНОГО ШУМА
+initial_k = 0.05 * np.sin(np.linspace(0, 4 * np.pi, N_ctrl))
+k_raw = nn.Parameter(torch.tensor(initial_k, dtype=torch.float64, device=device))
+
+# Теперь оптимизируем И кривизну, И выходные фазы
 optimizer = torch.optim.Adam([k_raw], lr=0.01)
 
 # --- ЦЕЛЕВАЯ МАТРИЦА (DFT) ---
@@ -50,113 +66,60 @@ U_target_np = dft(N_modes) / np.sqrt(N_modes)
 Target_M = torch.tensor(U_target_np, dtype=torch.complex128, device=device)
 
 # =====================================================================
-# ЦИКЛ ОБУЧЕНИЯ (ГРАДИЕНТНЫЙ СПУСК)
+# ЦИКЛ ОБУЧЕНИЯ (Adam)
 # =====================================================================
-print("\nЗапуск Градиентного Обратного Проектирования (Adjoint Method)...")
+print("\nЗапуск Градиентного Обратного Проектирования (Adam)...")
 start_time = time.time()
 epochs = 800
+loss_history, fidelity_history = [], []
 
-alpha_loss = 0.5 # Заставляем алгоритм беречь энергию
-loss_history = []
-fidelity_history = []
-
-initial_guess = np.concatenate([
-    0.05 * np.sin(np.linspace(0, 4 * np.pi, N_ctrl)), # Кривизна
-    np.zeros(N_modes)                                 # Фазы
-])
-
-# =====================================================================
-# ЦЕЛЕВАЯ ФУНКЦИЯ ДЛЯ SCIPY (С ВЫЗОВОМ PYTORCH ВНУТРИ)
-# =====================================================================
-def objective_gpu(params_np):
-    # Отключаем градиенты PyTorch, они не нужны Nelder-Mead
-    with torch.no_grad():
-        # Разделяем параметры
-        raw_k = params_np[:N_ctrl]
-        raw_phases = params_np[N_ctrl:]
-        
-        # Переносим на GPU
-        k_tensor = torch.tensor(raw_k, dtype=torch.float64, device=device)
-        phases_tensor = torch.tensor(raw_phases, dtype=torch.float64, device=device)
-        
-        # Проекция кривизны в безопасный диапазон [-0.16, 0.16]
-        k_ctrl = 0.16 * torch.tanh(k_tensor)
-        
-        # Прямой проход на GPU (МГНОВЕННО!)
-        M_sim = solver(L, k_ctrl)
-        
-        # Применяем выходные фазовращатели
-        phase_diag = torch.exp(1j * phases_tensor).unsqueeze(1)
-        M_corrected = phase_diag * M_sim
-        
-        # Считаем метрики
-        trace_val = torch.trace(torch.matmul(Target_M.mH, M_corrected))
-        fidelity = (torch.abs(trace_val)**2) / (N_modes**2)
-        error_fidelity = torch.abs(1.0 - fidelity)
-        
-        transmission = torch.sum(torch.abs(M_corrected)**2) / N_modes
-        error_loss = torch.abs(1.0 - transmission)
-        
-        smoothness_penalty = 0.0001 * torch.sum((k_ctrl[1:] - k_ctrl[:-1])**2)
-        
-        alpha_loss = 0.5
-        loss = error_fidelity + smoothness_penalty #(alpha_loss * error_loss) 
-        
-    return loss.item() # Возвращаем обычный Python float для SciPy
-
-# =====================================================================
-# АЛГОРИТМ ОБРАТНОГО ПРОЕКТИРОВАНИЯ (Nelder-Mead)
-# =====================================================================
-print("\nЗапуск гибридной оптимизации: SciPy Nelder-Mead + PyTorch GPU...")
-start_time = time.time()
-
-max_iter = 1500
-from tqdm import tqdm
-pbar = tqdm(total=max_iter, desc="Оптимизация (Nelder-Mead)", unit="итер")
-
-def callback(x):
-    pbar.update(1)
-
-res = minimize(
-    objective_gpu, 
-    initial_guess, 
-    method='Nelder-Mead', 
-    callback=callback,
-    options={'maxiter': max_iter, 'maxfev': 3000, 'xatol': 1e-4, 'fatol': 1e-4}
-)
-pbar.close()
+for epoch in range(epochs):
+    optimizer.zero_grad()
+    
+    # Ограничение кривизны
+    k_ctrl = 0.19 * torch.tanh(k_raw)
+    
+    # Вызов RK4 PyTorch солвераß
+    M_sim = solver(L, k_ctrl)
+    
+    # Считаем Фиделити НАПРЯМУЮ, без всяких дополнительных фаз
+    trace_val = torch.trace(torch.matmul(Target_M.mH, M_sim))
+    fidelity = (torch.abs(trace_val)**2) / (N_modes**2)
+    error_fidelity = torch.abs(1.0 - fidelity)
+    
+    transmission = torch.sum(torch.abs(M_sim)**2) / N_modes
+    error_loss = torch.abs(1.0 - transmission)
+    
+    smoothness_penalty = 0.00001 * torch.sum((k_ctrl[1:] - k_ctrl[:-1])**2)
+    
+    loss = error_fidelity + (0.5 * error_loss) + smoothness_penalty
+    loss.backward()
+    optimizer.step()
+    
+    loss_history.append(loss.item())
+    fidelity_history.append(fidelity.item())
+    
+    if (epoch + 1) % 50 == 0:
+        print(f"Итерация {epoch+1}/{epochs} | Loss: {loss.item():.4f} | Fidelity: {fidelity.item()*100:.2f}% | Transm: {transmission.item()*100:.2f}%")
 print(f"Оптимизация завершена за {time.time() - start_time:.2f} секунд!")
 
-# --- ИЗВЛЕКАЕМ ОПТИМАЛЬНЫЕ ПАРАМЕТРЫ ДЛЯ ФИНАЛЬНОГО АНАЛИЗА ---
-opt_raw_k = res.x[:N_ctrl]
-opt_raw_phases = res.x[N_ctrl:]
-
-# Переносим параметры на GPU
-k_tensor_final = torch.tensor(opt_raw_k, dtype=torch.float64, device=device)
-k_ctrl_final = 0.16 * torch.tanh(k_tensor_final)
-phases_tensor_final = torch.tensor(opt_raw_phases, dtype=torch.float64, device=device)
-
-s_vals = np.linspace(0, L, num_steps)
-
-# 1. ПЕРЕВОДИМ СОЛВЕР В РЕЖИМ ОЦЕНКИ (чтобы он вернул и матрицу, и кривую)
-solver.eval()
-
+# --- ФИНАЛЬНЫЙ АНАЛИЗ ---
 with torch.no_grad():
-    # Теперь солвер отдаст ровно два значения
+    solver.eval() 
+    k_ctrl_final = 0.2 * torch.tanh(k_raw)
+    
+    # Солвер теперь возвращает 2 значения, как мы писали в RK4:
     M_sim, k_dense = solver(L, k_ctrl_final)
     
-    # 2. ПРИМЕНЯЕМ ОПТИМАЛЬНЫЕ ФАЗОВРАЩАТЕЛИ
-    phase_diag = torch.exp(1j * phases_tensor_final).unsqueeze(1)
+    phase_diag = torch.exp(1j * out_phases).unsqueeze(1)
     M_corrected = phase_diag * M_sim
     
-    # 3. СЧИТАЕМ ЧЕСТНЫЕ МЕТРИКИ (а не берем из пустого массива)
     trace_val = torch.trace(torch.matmul(Target_M.mH, M_corrected))
     final_fidelity = ((torch.abs(trace_val)**2) / (N_modes**2)).item()
     
+    M_final = M_corrected.cpu().numpy()
+    final_transmission = np.sum(np.abs(M_final)**2) / N_modes
     kappa_final = k_dense.cpu().numpy()
-
-M_final = M_corrected.cpu().numpy()
-final_transmission = np.sum(np.abs(M_final)**2) / N_modes
 
 print(f"\n" + "="*40)
 print(f" ФИНАЛЬНЫЙ ОТЧЕТ (PyTorch GPU + Nelder-Mead)")

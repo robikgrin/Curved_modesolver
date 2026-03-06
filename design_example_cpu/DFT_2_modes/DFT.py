@@ -266,12 +266,12 @@ plot_complex_matrix_3d(ax1_3d, U_target, r'Target Unitary $U_{target}$ (DFT)')
 ax2_3d = fig_3d.add_subplot(122, projection='3d')
 plot_complex_matrix_3d(ax2_3d, M_sim, r'Experimental Unitary $M_{sim}$')
 
-sm = cm.ScalarMappable(cmap=cm.hsv, norm=plt.Normalize(vmin=-np.pi, vmax=np.pi))
+sm = cm.ScalarMappable(cmap=cm.hsv, norm=plt.Normalize(vmin=0, vmax=2*np.pi))
 cbar_ax = fig_3d.add_axes([0.92, 0.25, 0.015, 0.5]) # Тонкий и аккуратный colorbar
 cbar = fig_3d.colorbar(sm, cax=cbar_ax)
 cbar.set_label(r'Phase $\arg(U_{ij})$', fontsize=12)
-cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
-cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
+cbar.set_ticks([0, np.pi/2, np.pi, 3*np.pi/2, 2 * np.pi])
+cbar.set_ticklabels([r'0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
 plt.subplots_adjust(wspace=0.1)
 plt.savefig('unitary_matrices_3d.png', dpi=400, bbox_inches='tight')
